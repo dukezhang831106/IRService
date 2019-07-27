@@ -1,0 +1,98 @@
+{
+    "USD":  [{ 
+            "Exchange": "NY",
+            "Holiday": "NY", 
+            "Instruments" : {
+                "depo": {
+                    "SettlementDays": "2D",
+                    "DayCountConvention": "Actual/360",
+                    "BusinessDayConvention": "ModifiedFollowing",
+                    "EOM": false
+                },
+                "futures": {
+                    "SettlementDays": "2D",
+                    "DayCountConvention": "Actual/360",
+                    "BusinessDayConvention": "ModifiedFollowing",
+                    "Frequency": "3M",
+                    "EOM": true  
+                },
+                "swap": {
+                    "SettlementDays": "2D",
+                    "FixedLegDayCountConvention": "Actual/360",
+                    "FixedLegFrequency": "6M",
+                    "FixedLegTenor": "6M",
+                    "FixedLegBusinessDayConvention": "Unadjust",
+                    "FloatingLegDayCountConvention": "Actual/360",
+                    "FloatingLegFrequency": "3M",
+                    "FloatingLegTenor": "3M",
+                    "FloatingLegBusinessDayConvention": "Unadjust",
+                    "Index": "USD3M",
+                    "EOM": false
+                },
+                "swaption": {
+                    "SettlementDays": "2D",
+                    "FixedLegDayCountConvention": "Actual/360",
+                    "FixedLegFrequency": "6M",
+                    "FixedLegTenor": "6M",
+                    "FixedLegBusinessDayConvention": "Unadjust",
+                    "FloatingLegDayCountConvention": "Actual/360",
+                    "FloatingLegFrequency": "3M",
+                    "FloatingLegTenor": "3M",
+                    "FloatingLegBusinessDayConvention": "Unadjust",
+                    "Index": "USD3M",
+                    "EOM": false
+                },
+                "swaptionFittingGrid": [
+                    {"Expiry": "1M", "Tenor": "1Y"}, 
+                    {"Expiry": "1M", "Tenor": "2Y"}, 
+                    {"Expiry": "1M", "Tenor": "3Y"}, 
+                    {"Expiry": "1M", "Tenor": "5Y"}, 
+                    {"Expiry": "1M", "Tenor": "10Y"}, 
+                    {"Expiry": "1M", "Tenor": "15Y"}, 
+                    {"Expiry": "3M", "Tenor": "1Y"}, 
+                    {"Expiry": "3M", "Tenor": "2Y"}, 
+                    {"Expiry": "3M", "Tenor": "3Y"}, 
+                    {"Expiry": "3M", "Tenor": "5Y"}, 
+                    {"Expiry": "3M", "Tenor": "10Y"}, 
+                    {"Expiry": "3M", "Tenor": "15Y"}, 
+                    {"Expiry": "6M", "Tenor": "1Y"}, 
+                    {"Expiry": "6M", "Tenor": "2Y"}, 
+                    {"Expiry": "6M", "Tenor": "3Y"}, 
+                    {"Expiry": "6M", "Tenor": "5Y"}, 
+                    {"Expiry": "6M", "Tenor": "10Y"}, 
+                    {"Expiry": "6M", "Tenor": "15Y"}, 
+                    {"Expiry": "1Y", "Tenor": "1Y"}, 
+                    {"Expiry": "1Y", "Tenor": "2Y"}, 
+                    {"Expiry": "1Y", "Tenor": "3Y"}, 
+                    {"Expiry": "1Y", "Tenor": "5Y"}, 
+                    {"Expiry": "1Y", "Tenor": "10Y"},
+                    {"Expiry": "1Y", "Tenor": "15Y"}, 
+                    {"Expiry": "2Y", "Tenor": "1Y"}, 
+                    {"Expiry": "2Y", "Tenor": "2Y"}, 
+                    {"Expiry": "2Y", "Tenor": "3Y"}, 
+                    {"Expiry": "2Y", "Tenor": "5Y"}, 
+                    {"Expiry": "2Y", "Tenor": "10Y"},
+                    {"Expiry": "2Y", "Tenor": "15Y"},
+                    {"Expiry": "3Y", "Tenor": "1Y"}, 
+                    {"Expiry": "3Y", "Tenor": "2Y"}, 
+                    {"Expiry": "3Y", "Tenor": "3Y"}, 
+                    {"Expiry": "3Y", "Tenor": "5Y"}, 
+                    {"Expiry": "3Y", "Tenor": "10Y"},
+                    {"Expiry": "3Y", "Tenor": "15Y"},
+                    {"Expiry": "5Y", "Tenor": "1Y"}, 
+                    {"Expiry": "5Y", "Tenor": "2Y"}, 
+                    {"Expiry": "5Y", "Tenor": "3Y"}, 
+                    {"Expiry": "5Y", "Tenor": "5Y"}, 
+                    {"Expiry": "5Y", "Tenor": "10Y"},
+                    {"Expiry": "5Y", "Tenor": "15Y"},
+                    {"Expiry": "10Y", "Tenor": "1Y"}, 
+                    {"Expiry": "10Y", "Tenor": "2Y"}, 
+                    {"Expiry": "10Y", "Tenor": "3Y"}, 
+                    {"Expiry": "10Y", "Tenor": "5Y"}, 
+                    {"Expiry": "10Y", "Tenor": "10Y"},
+                    {"Expiry": "10Y", "Tenor": "15Y"}
+                    ]
+            }
+        }
+    ]
+}
