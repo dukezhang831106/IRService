@@ -1,22 +1,22 @@
 {
     "USD":  [{ 
             "Exchange": "NY",
-            "Holiday": "NY", 
-            "Instruments" : {
-                "depo": {
+            "Holidays": "NY", 
+            "CurveInstruments" : {
+                "Depo": {
                     "SettlementDays": "2D",
                     "DayCountConvention": "Actual/360",
                     "BusinessDayConvention": "ModifiedFollowing",
                     "EOM": false
                 },
-                "futures": {
+                "Fut": {
                     "SettlementDays": "2D",
                     "DayCountConvention": "Actual/360",
                     "BusinessDayConvention": "ModifiedFollowing",
                     "Frequency": "3M",
                     "EOM": true  
                 },
-                "swap": {
+                "Swap": {
                     "SettlementDays": "2D",
                     "FixedLegDayCountConvention": "Actual/360",
                     "FixedLegFrequency": "6M",
@@ -28,8 +28,10 @@
                     "FloatingLegBusinessDayConvention": "Unadjust",
                     "Index": "USD3M",
                     "EOM": false
-                },
-                "swaption": {
+                }
+            },
+            "VolatilityInstruments" : {
+                "Swaption": {
                     "SettlementDays": "2D",
                     "FixedLegDayCountConvention": "Actual/360",
                     "FixedLegFrequency": "6M",

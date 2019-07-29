@@ -1,12 +1,88 @@
 #include "libormarketmodel.hpp"
 
 LiborMarketModel::LiborMarketModel(std::string& modelDate, std::string& currency, std::string& exchange) : modelModelDate_(modelDate), currency_(currency), exchange_(exchange) {
+    std::ifstream file("C++/data/configuration.json");
+    json output;
+    file >> output;
+    for(auto & exchange : output[currency_]){
+        if (exchange["Exchange"] == exchange_){
+            std::string holmask = exchange["Holidays"];
+            calendar_ = parse_calendar(holmask);
+            
+            for (auto & instrument : exchange["CurveInstruments"].items()){
+                std::string key(instrument.key());
+                parse_instruments(key, instrument.value());
+            }
 
+            for (auto & vol_instrument : exchange["VolatilityInstruments"].items()){
+                std::string key(vol_instrument.key());
+                parse_instruments(key, vol_instrument.value());
+            }
+        }
+    }
+    return;    
 }
 
-void LiborMarketModel::parse_calendar(std::string& holmasks) {
+void LiborMarketModel::parse_instruments(std::string& key, json& info){
+    pqxx::connection conn("dbname=EikonInstrument user=postgres host=127.0.0.1 port=1111 password=123456");
+    pqxx::work txn(conn);
+
+    std::stringstream command;
+    command << "SELECT * " << "FROM \"IRInstruments\" " << "WHERE \"QuoteDate\"=Date('" 
+        << modelModelDate_ << "') AND \"Currency\"='USD' AND \"InstrumentType\"='" << key << "';";
+    pqxx::result res = txn.exec(command.str());
+    
+    if (key == "Depo"){
+        std::string dct = info["DayCountConvention"], bdc = info["BusinessDayConvention"];
+        
+        for(int i = 0; i < res.size(); i++){
+            pqxx::row record(res, i);
+            GeneralInstrumentInformation instrument(record);
+            Handle<Quote> r(instrument.quote);
+            curveCalibrator_.push_back(boost::shared_ptr<CalibrationHelper>(new DepositRateHelper(r, parse_period(instrument.expiry), 
+                2, calendar_, bdc, false, dct)));
+            std::cout << instrument.quote << std::endl;
+            /*ext::shared_ptr<BlackCalibrationHelper> depohelper(
+            new DepositRateHelper(, capVol, index, Annual,
+                          index->dayCounter(), true, termStructure,
+                          BlackCalibrationHelper::ImpliedVolError));*/
+        }
+        
+    }
+}
+
+BusinessDayConvention LiborMarketModel::parse_buisnessdayconvention(std::string& bdc){
+    if (bdc == "ModifiedFollwing")
+        return ModifiedFollowing;
+    return Unadjusted;
+}
+
+
+DayCounter LiborMarketModel::parse_daycounter(std::string& dct){
+    if (dct == "Actual/360")
+        return Actual360();
+    return Actual360();
+}
+
+Period LiborMarketModel::parse_period(std::string& p){
+    int length = boost::lexical_cast<int>(p.substr(0, p.size()-1));
+    if (p == "TN")
+        return Period(1, Days);
+    else if (p == "SN")
+        return Period(2, Days);
+    else if (p[p.size()-1] == 'D')
+        return Period(length, Days);
+    else if (p[p.size()-1] == 'M')
+        return Period(length, Months);
+    else if (p[p.size()-1] == 'Y')
+        return Period(length, Years);
+    return Period(length, Years);
+}
+
+Calendar LiborMarketModel::parse_calendar(std::string& holmasks) {
     std::stringstream holidays(holmasks);
     int cnt = 0;
+    Calendar calendar;
     while(holidays.good()){
         std::string hol;
         getline(holidays, hol, ',');
@@ -28,13 +104,14 @@ void LiborMarketModel::parse_calendar(std::string& holmasks) {
         else 
             cal = UnitedStates();
         if (cnt == 0){
-            calendar_ = cal;
+            calendar = cal;
         }
         else{
-            calendar_ = JointCalendar(calendar_, cal);
+            calendar = JointCalendar(calendar, cal);
         }
         cnt++;
     }
+    return calendar;
 }
 
 void LiborMarketModel::buildCurve(){
@@ -174,6 +251,10 @@ void LiborMarketModel::buildModel(){
         std::cout << "Calculated diff: " << std::sqrt(calculated) << std::endl;
         std::cout << "Expected : smaller than  " << tolerance << std::endl;
     }
+
+    std::cout << "Success" << std::endl;
+    std::cout << "Calculated diff: " << std::sqrt(calculated) << std::endl;
+    std::cout << "Expected : smaller than  " << tolerance << std::endl;
 }
 
 /*void LiborMarketModel::test_connection(){
