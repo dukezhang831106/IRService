@@ -29,7 +29,7 @@ class IRCurve:
         ql.Settings.instance().evaluationDate = self.settlement_date
 
     def calibration(self):
-        connection = psycopg2.connect(dbname='EikonInstrument', user='postgres', host='127.0.0.1', port='1111',
+        connection = psycopg2.connect(dbname='EikonInstrument', user='postgres', host='127.0.0.1', port='5432',
                                       password='123456')
         cursor = connection.cursor()
         cursor.execute("SELECT * FROM \"IRInstruments\" WHERE \"QuoteDate\"=Date('{}') AND \"Currency\"='{}';".format(self.quote_date, self.ccy))
@@ -72,6 +72,8 @@ class IRCurve:
         helpers = depositHelpers + futuresHelpers + swapHelpers
         self.discountTermStructure = ql.RelinkableYieldTermStructureHandle()
         self.forecastTermStructure = ql.RelinkableYieldTermStructureHandle()
+        for hh in helpers:
+            print("{}: {}".format(hh.maturityDate(), hh.quote().value()))
         self.curve = ql.PiecewiseLinearForward(self.settlement_date, helpers, self.configuration.dayCounter)
         self.discountTermStructure.linkTo(self.curve)
 
@@ -111,7 +113,7 @@ class IRModel:
 
     def calibration(self):
         index = ql.USDLibor(ql.Period(3, ql.Months), self.discountTermStructure)
-        connection = psycopg2.connect(dbname='EikonInstrument', user='postgres', host='127.0.0.1', port='1111',
+        connection = psycopg2.connect(dbname='EikonInstrument', user='postgres', host='127.0.0.1', port='5432',
                                       password='123456')
         cursor = connection.cursor()
         cursor.execute("SELECT * FROM \"IRInstruments\" WHERE \"QuoteDate\"=Date('{}') AND \"Currency\"='{}' AND \"InstrumentType\"='Swaption';".format(
@@ -185,6 +187,9 @@ if __name__ == '__main__':
     quote_date, ccy, model_type = '2019-05-28', 'USD', 'HullWhite'
     curveHandle = IRCurve(quote_date, ccy)
     curveHandle.calibration()
+    tenor, spots = curveHandle.get_spot_rates()
+    print(tenor)
+    print(spots)
     '''curve, termStructure = curveHandle.get_curve()
     tenor, spots = curveHandle.get_spot_rates()
     modelHandle = IRModel(model_type, quote_date, ccy)

@@ -1,0 +1,11 @@
+#include "piecewiseyieldcurve.hpp"
+
+int main(){
+    PiecewiseYieldCurveTest test;
+    test.testLogCubicDiscountConsistency();
+    test.testLogLinearDiscountConsistency();
+    test.testLogLinearZeroConsistency();
+    test.testLinearZeroConsistency();
+    test.testLinearForwardConsistency();
+    return EXIT_SUCCESS;
+}

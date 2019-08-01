@@ -2,6 +2,8 @@
     "USD":  [{ 
             "Exchange": "NY",
             "Holidays": "NY", 
+            "SettlementDays": "2D",
+            "DayCountConvention": "Actual/360",
             "CurveInstruments" : {
                 "Depo": {
                     "SettlementDays": "2D",
@@ -18,14 +20,12 @@
                 },
                 "Swap": {
                     "SettlementDays": "2D",
-                    "FixedLegDayCountConvention": "Actual/360",
+                    "FixedLegDayCountConvention": "30/360",
                     "FixedLegFrequency": "6M",
-                    "FixedLegTenor": "6M",
-                    "FixedLegBusinessDayConvention": "Unadjust",
+                    "FixedLegBusinessDayConvention": "ModifiedFollowing",
                     "FloatingLegDayCountConvention": "Actual/360",
                     "FloatingLegFrequency": "3M",
-                    "FloatingLegTenor": "3M",
-                    "FloatingLegBusinessDayConvention": "Unadjust",
+                    "FloatingLegBusinessDayConvention": "ModifiedFollowing",
                     "Index": "USD3M",
                     "EOM": false
                 }
@@ -33,36 +33,16 @@
             "VolatilityInstruments" : {
                 "Swaption": {
                     "SettlementDays": "2D",
-                    "FixedLegDayCountConvention": "Actual/360",
+                    "FixedLegDayCountConvention": "30/360",
                     "FixedLegFrequency": "6M",
-                    "FixedLegTenor": "6M",
-                    "FixedLegBusinessDayConvention": "Unadjust",
+                    "FixedLegBusinessDayConvention": "ModifiedFollowing",
                     "FloatingLegDayCountConvention": "Actual/360",
                     "FloatingLegFrequency": "3M",
-                    "FloatingLegTenor": "3M",
-                    "FloatingLegBusinessDayConvention": "Unadjust",
+                    "FloatingLegBusinessDayConvention": "ModifiedFollowing",
                     "Index": "USD3M",
                     "EOM": false
                 },
-                "swaptionFittingGrid": [
-                    {"Expiry": "1M", "Tenor": "1Y"}, 
-                    {"Expiry": "1M", "Tenor": "2Y"}, 
-                    {"Expiry": "1M", "Tenor": "3Y"}, 
-                    {"Expiry": "1M", "Tenor": "5Y"}, 
-                    {"Expiry": "1M", "Tenor": "10Y"}, 
-                    {"Expiry": "1M", "Tenor": "15Y"}, 
-                    {"Expiry": "3M", "Tenor": "1Y"}, 
-                    {"Expiry": "3M", "Tenor": "2Y"}, 
-                    {"Expiry": "3M", "Tenor": "3Y"}, 
-                    {"Expiry": "3M", "Tenor": "5Y"}, 
-                    {"Expiry": "3M", "Tenor": "10Y"}, 
-                    {"Expiry": "3M", "Tenor": "15Y"}, 
-                    {"Expiry": "6M", "Tenor": "1Y"}, 
-                    {"Expiry": "6M", "Tenor": "2Y"}, 
-                    {"Expiry": "6M", "Tenor": "3Y"}, 
-                    {"Expiry": "6M", "Tenor": "5Y"}, 
-                    {"Expiry": "6M", "Tenor": "10Y"}, 
-                    {"Expiry": "6M", "Tenor": "15Y"}, 
+                "SwaptionFittingGrid": [
                     {"Expiry": "1Y", "Tenor": "1Y"}, 
                     {"Expiry": "1Y", "Tenor": "2Y"}, 
                     {"Expiry": "1Y", "Tenor": "3Y"}, 

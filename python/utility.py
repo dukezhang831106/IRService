@@ -1,7 +1,7 @@
 import eikon as ek
 import itertools
 import datetime as dt
-ek.set_app_key('3edad9e062734052908433f7c74ede994f827026')
+#ek.set_app_key('3edad9e062734052908433f7c74ede994f827026')
 
 def generate_queries(quote_date, ccy, instruments, instrument, sources):
     import QuantLib as ql
@@ -40,10 +40,30 @@ def generate_queries(quote_date, ccy, instruments, instrument, sources):
         commands.append("INSERT INTO \"IRInstruments\" VALUES (Date('{}'), '{}', '{}', '{}', '{}', '{}', {})".format(quote_date, ccy, instrument, source, expiry, tenor, quote))
     return commands
 
+def generate_csv_commands():
+    import os
+    commands = list()
+    with open(os.path.join('..', 'USDData.csv')) as f:
+        lines = f.readlines()
+    cnt = 0
+    for line in lines:
+        info = line.replace('\n', '').split(',')
+        if cnt > 0:
+            commands.append(
+                "INSERT INTO \"IRInstruments\" VALUES (Date('{}'), '{}', '{}', '{}', '{}', '{}', {});".format(info[0],
+                                                                                                             info[1],
+                                                                                                             info[2],
+                                                                                                             info[3],
+                                                                                                             info[4],
+                                                                                                             info[5],
+                                                                                                             info[6]))
+        cnt += 1
+    return commands
+
 def update_database(commands):
     import psycopg2
     from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
-    connection = psycopg2.connect(dbname='EikonInstrument', user='postgres', host='127.0.0.1', port='1111', password='123456')
+    connection = psycopg2.connect(dbname='EikonInstrument', user='postgres', host='127.0.0.1', port='5050', password='123456')
     cursor = connection.cursor()
     #cursor.execute("ALTER TABLE \"IRInstruments\" ADD COLUMN Currency TEXT")
     #cursor.execute("ALTER TABLE \"IRInstruments\" ADD COLUMN InstrumentType TEXT ")
@@ -51,9 +71,11 @@ def update_database(commands):
     #cursor.execute("ALTER TABLE \"IRInstruments\" ADD COLUMN Expiry TEXT ")
     #cursor.execute("ALTER TABLE \"IRInstruments\" ADD COLUMN Tenor TEXT ")
     #cursor.execute("ALTER TABLE \"IRInstruments\" ADD COLUMN Quote double precision ")
-
+    cnt = 0
     for command in commands:
+        print('query {} inserted'.format(cnt))
         cursor.execute(command)
+        cnt += 1
     connection.commit()
     return
 
@@ -80,8 +102,13 @@ def parse_database_to_csv(path):
 
 
 if __name__ == "__main__":
-    #update_database('')
-    instruments = {'Depo':'D', 'Fut':'ED', 'Swap':'AM3L', 'Swaption':''}
+    commands = generate_csv_commands()
+    print(len(commands))
+    for command in commands:
+        print(command)
+    #update_database(commands)
+    #print("done")
+    '''instruments = {'Depo':'D', 'Fut':'ED', 'Swap':'AM3L', 'Swaption':''}
     quote_date = dt.date.today().strftime('%Y-%m-%d')
     ccys = ['USD']
     sources = {'Depo':'', 'Fut':'', 'Swap':'ICAP', 'Swaption':'ICAP'}
@@ -92,7 +119,7 @@ if __name__ == "__main__":
             commands = generate_queries(quote_date, ccy, instruments, key, sources)
             update_database(commands)
             print('{} in {} saved'.format(key, ccy))
-
+    '''
 
 #data, error = ek.get_data('.TRISTI', ['TR.CLOSEPRICE.Date', 'TR.CLOSEPRICE'], parameters={'SDate':'2019-01-01', 'EDate':'2019-05-30'})
 #print(data)
