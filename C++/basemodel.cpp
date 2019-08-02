@@ -7,7 +7,7 @@ BaseModel::BaseModel(std::string& modelDate, std::string& currency, std::string&
     for(auto & exchange : output[currency_]){
         if (exchange["Exchange"] == exchange_){
             // parse general information
-            std::string settle = exchange["SettlementDays"], daycounter = exchange["DayCountConvention"], holmask = exchange["Holidays"];
+            std::string settle = exchange["SettlementDays"], daycounter = exchange["DayCountConvention"], holmask = exchange["Holidays"], dayCounter_ = exchange["DayCountConvention"];
             calendar_ = parse_calendar(holmask);
             int fixingDays = boost::lexical_cast<int>(settle.substr(0, settle.size() - 1));
 
@@ -24,7 +24,12 @@ BaseModel::BaseModel(std::string& modelDate, std::string& currency, std::string&
                 std::string key(instrument.key());
                 parse_linear_instruments(key, instrument.value());
             }
-            buildCurve(interpolationType, daycounter);
+            buildCurve();
+            std::vector<Time> times;
+            for(int i = 0; i < 100; i++){
+                times.push_back(i*0.01);
+            }
+            getCashDF(times);
         }
     }
     return;
@@ -44,10 +49,11 @@ void BaseModel::parse_linear_instruments(std::string& key, json& info){
         bool eom = info["EOM"];
         int settlement_days = boost::lexical_cast<int>(settle.substr(0, settle.size() - 1));
         for(int i = 0; i < res.size(); i++){
-            pqxx::result::tuple record = res[i];
+            pqxx::row record = res[i];
             GeneralInstrumentInformation instrument(record);
             boost::shared_ptr<Quote> rate(new SimpleQuote(instrument.quote/100.0));
             boost::shared_ptr<RateHelper> holder(new DepositRateHelper(Handle<Quote>(rate), parse_period(instrument.expiry), settlement_days, calendar_, parse_buisnessdayconvention(bdc), eom, parse_daycounter(dct)));
+            curveData_.insert(std::make_pair(parse_period(instrument.expiry), instrument.quote/100.0));
             curveCalibrator_.push_back(holder);
             std::cout << "Depo " << instrument.expiry << " inserted." << std::endl;
         }
@@ -57,7 +63,7 @@ void BaseModel::parse_linear_instruments(std::string& key, json& info){
         bool eom = info["EOM"];
         int settlement_days = boost::lexical_cast<int>(settle.substr(0, settle.size() - 1)), frequency = boost::lexical_cast<int>(freq.substr(0, freq.size() - 1));
         for(int i = 0; i < res.size(); i++){
-            pqxx::result::tuple record = res[i];
+            pqxx::row record = res[i];
             GeneralInstrumentInformation instrument(record);
             boost::shared_ptr<Quote> price(new SimpleQuote(instrument.quote));
             boost::shared_ptr<RateHelper> holder(new FuturesRateHelper(Handle<Quote>(price), IMM::date(instrument.expiry), frequency, calendar_, parse_buisnessdayconvention(bdc), eom, parse_daycounter(dct)));
@@ -73,11 +79,12 @@ void BaseModel::parse_linear_instruments(std::string& key, json& info){
         bool eom = info["EOM"];
         int settlement_days = boost::lexical_cast<int>(settle.substr(0, settle.size() - 1));
         for(int i = 0; i < res.size(); i++){
-            pqxx::result::tuple record = res[i];
+            pqxx::row record = res[i];
             GeneralInstrumentInformation instrument(record);
             boost::shared_ptr<Quote> rate(new SimpleQuote(instrument.quote/100.0));
             boost::shared_ptr<RateHelper> holder(new SwapRateHelper(Handle<Quote>(rate), parse_period(instrument.expiry), calendar_, 
                 parse_frequency(fix_freq), parse_buisnessdayconvention(fix_bdc), parse_daycounter(fix_dct), parse_indices(indices)));
+            curveData_.insert(std::make_pair(parse_period(instrument.expiry), instrument.quote/100.0));
             curveCalibrator_.push_back(holder);
             std::cout << "Swap " << instrument.expiry << " inserted." << std::endl;
         }
@@ -181,24 +188,45 @@ Calendar BaseModel::parse_calendar(std::string& holmasks) {
     return calendar;
 }
 
-void BaseModel::buildCurve(std::string& interpolationType, std::string& dayCounter){
+void BaseModel::buildCurve(){
     double tolerance = 1e-10;
-    if(interpolationType == "LogLinear"){
-        boost::shared_ptr<YieldTermStructure> termStructure(new PiecewiseYieldCurve<Discount, LogLinear>(settlementDate_, curveCalibrator_, parse_daycounter(dayCounter), tolerance));
-        discountingTermStructure_.linkTo(termStructure);
-        forecastingTermStructure_.linkTo(termStructure);
+    // First we build a discount curve
+    auto oisIndex = boost::make_shared<FedFunds>();
+
+    // create container for rate helpers
+    std::vector<boost::shared_ptr<RateHelper>> rateHelpers;
+
+    Natural settlementDays = settlementDate_ - modelModelDate_;
+    // create first 1d cash instrument for eonia curve - using deposit rate helper
+    auto Q1D = boost::make_shared<SimpleQuote>(curveCalibrator_[0].get()->quote().currentLink().get()->value());
+    rateHelpers.push_back(boost::make_shared<DepositRateHelper>(Handle<Quote>(Q1D), Period(1, Days), oisIndex->fixingDays(), oisIndex->fixingCalendar(), oisIndex->businessDayConvention(), oisIndex->endOfMonth(), oisIndex->dayCounter()));
+
+    // create source data for eonia curve (period, rate)
+    
+
+    // create other instruments for eonia curve - using ois rate helper
+    std::for_each(curveData_.begin(), curveData_.end(), [settlementDays, &rateHelpers, &oisIndex](std::pair<Period, Real> p) -> void  { rateHelpers.push_back(boost::make_shared<OISRateHelper>(settlementDays, p.first, Handle<Quote>(boost::make_shared<SimpleQuote>(p.second)), oisIndex)); });
+
+    // create piecewise term structure
+    if (interpolationType_ == "LogLinear"){
+        boost::shared_ptr<YieldTermStructure> oisCurve(boost::make_shared<PiecewiseYieldCurve<Discount, LogLinear>>(settlementDays, oisIndex->fixingCalendar(), rateHelpers, oisIndex->dayCounter()));
+        discountingTermStructure_.linkTo(oisCurve);
+        boost::shared_ptr<YieldTermStructure> fwdCurve(new PiecewiseYieldCurve<ForwardRate, LogLinear>(settlementDate_, curveCalibrator_, parse_daycounter(dayCounter_), tolerance));
+        forecastingTermStructure_.linkTo(fwdCurve);
         return;
     }
-    else if(interpolationType == "Linear"){
-        boost::shared_ptr<YieldTermStructure> termStructure(new PiecewiseYieldCurve<Discount, Linear>(settlementDate_, curveCalibrator_, parse_daycounter(dayCounter), tolerance));
-        discountingTermStructure_.linkTo(termStructure);
-        forecastingTermStructure_.linkTo(termStructure);
+    else if(interpolationType_ == "Linear"){
+        boost::shared_ptr<YieldTermStructure> oisCurve(boost::make_shared<PiecewiseYieldCurve<Discount, Linear>>(settlementDays, oisIndex->fixingCalendar(), rateHelpers, oisIndex->dayCounter()));
+        discountingTermStructure_.linkTo(oisCurve);
+        boost::shared_ptr<YieldTermStructure> fwdCurve(new PiecewiseYieldCurve<ForwardRate, Linear>(settlementDate_, curveCalibrator_, parse_daycounter(dayCounter_), tolerance));
+        forecastingTermStructure_.linkTo(fwdCurve);
         return;
     }
-    else if(interpolationType == "Cubic"){
-        boost::shared_ptr<YieldTermStructure> termStructure(new PiecewiseYieldCurve<Discount, Cubic>(settlementDate_, curveCalibrator_, parse_daycounter(dayCounter), tolerance));
-        discountingTermStructure_.linkTo(termStructure);
-        forecastingTermStructure_.linkTo(termStructure);
+    else if(interpolationType_ == "Cubic"){
+        boost::shared_ptr<YieldTermStructure> oisCurve(boost::make_shared<PiecewiseYieldCurve<Discount, Cubic>>(settlementDays, oisIndex->fixingCalendar(), rateHelpers, oisIndex->dayCounter()));
+        discountingTermStructure_.linkTo(oisCurve);
+        boost::shared_ptr<YieldTermStructure> fwdCurve(new PiecewiseYieldCurve<ForwardRate, Cubic>(settlementDate_, curveCalibrator_, parse_daycounter(dayCounter_), tolerance));
+        forecastingTermStructure_.linkTo(fwdCurve);
         return;
     }
 }
@@ -219,6 +247,13 @@ boost::shared_ptr<IborIndex> BaseModel::makeIndex(std::string& indices) {
 void BaseModel::getCurveZeroRates(std::vector<Time>& times){    
     for(int i = 0; i < times.size(); i++){
         Rate r = discountingTermStructure_.currentLink().get()->zeroRate(times[i], Compounded, Semiannual);
+        std::cout << times[i] << ": " << r << std::endl;
+    }
+}
+
+void BaseModel::getCashDF(std::vector<Time>& times){    
+    for(int i = 0; i < times.size(); i++){
+        Rate r = discountingTermStructure_.currentLink().get()->discount(times[i]);
         std::cout << times[i] << ": " << r << std::endl;
     }
 }

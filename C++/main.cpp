@@ -5,8 +5,8 @@ int main(){
     std::string currency = "USD", exchange = "NY", modelDate = "2019-05-28", interpolationType = "LogLinear";
     
     HullWhiteModel hw(modelDate, currency, exchange, interpolationType);
-    ExtendedCIRModel cir(modelDate, currency, exchange, interpolationType);
-    BlackKarasinskiModel bk(modelDate, currency, exchange, interpolationType);
+    //ExtendedCIRModel cir(modelDate, currency, exchange, interpolationType);
+    //BlackKarasinskiModel bk(modelDate, currency, exchange, interpolationType);
     //std::string dayCounter = "30/360", interpolationType = "LogLinear";
     //model.buildCurve(dayCounter, interpolationType);
     //std::string freq = "7D";

@@ -28,7 +28,7 @@ struct GeneralInstrumentInformation{
     Date date;
     std::string currency, instrumentType, expiry, tenor, source;
     double quote;
-    GeneralInstrumentInformation(pqxx::result::tuple& record) {        
+    GeneralInstrumentInformation(pqxx::row& record) {        
         for(int i = 0; i < record.size(); i++){
             pqxx::field f = record[i];
             if(i == 0){
@@ -59,14 +59,14 @@ struct GeneralInstrumentInformation{
 struct CalibrationReport{
     std::string instrumentType, expiry, tenor, source;
     double expected, calculated, diff;
-
 };
 
 class BaseModel {
     private:
-        std::string currency_, exchange_, modelDate_, interpolationType_, indices_;
+        std::string currency_, exchange_, modelDate_, interpolationType_, indices_, dayCounter_;
         Date modelModelDate_, settlementDate_;
         Calendar calendar_;
+        std::map<Period, Real> curveData_;
         std::vector<boost::shared_ptr<RateHelper>> curveCalibrator_;
         RelinkableHandle<YieldTermStructure> discountingTermStructure_, forecastingTermStructure_;
     public:
@@ -80,11 +80,12 @@ class BaseModel {
         void parse_linear_instruments(std::string& key, json& instrument);
 
         boost::shared_ptr<IborIndex> parse_indices(std::string& indices);
-        void buildCurve(std::string& interpolationType, std::string& dayCounter);
+        void buildCurve();
         virtual void buildModel() = 0;
         std::vector<CalibrationReport> generateCurveCalibrationReport();
         //virtual std::vector<CalibrationReport> generateModelCalibrationReport() = 0;
         void getCurveZeroRates(std::vector<Time>& times);
+        void getCashDF(std::vector<Time>& times);
 
         std::string getCurrency() { return currency_; }
         std::string getExchange() { return exchange_; }

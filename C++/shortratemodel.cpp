@@ -59,7 +59,7 @@ void HullWhiteModel::parse_vol_instruments(std::string& key, json& info){
         boost::shared_ptr<PricingEngine> engine(new JamshidianSwaptionEngine(HWmodel_));
 
         for(int i = 0; i < res.size(); i++){
-            pqxx::result::tuple record = res[i];
+            pqxx::row record = res[i];
             GeneralInstrumentInformation instrument(record);
             std::string expiryTenor = "Swaption_" + instrument.expiry + "X" + instrument.tenor;
             if (fittable_.find(expiryTenor) != fittable_.end()){
@@ -152,7 +152,7 @@ void ExtendedCIRModel::parse_vol_instruments(std::string& key, json& info){
         boost::shared_ptr<PricingEngine> engine(new JamshidianSwaptionEngine(eCIRmodel_));
 
         for(int i = 0; i < res.size(); i++){
-            pqxx::result::tuple record = res[i];
+            pqxx::row record = res[i];
             GeneralInstrumentInformation instrument(record);
             std::string expiryTenor = "Swaption_" + instrument.expiry + "X" + instrument.tenor;
             if (fittable_.find(expiryTenor) != fittable_.end()){
@@ -253,7 +253,7 @@ void BlackKarasinskiModel::parse_vol_instruments(std::string& key, json& info){
         boost::shared_ptr<PricingEngine> engine(new TreeSwaptionEngine(BKmodel_, grid, getDiscountTermStructure()));
 
         for(int i = 0; i < res.size(); i++){
-            pqxx::result::tuple record = res[i];
+            pqxx::row record = res[i];
             GeneralInstrumentInformation instrument(record);
             std::string expiryTenor = "Swaption_" + instrument.expiry + "X" + instrument.tenor;
             if (fittable_.find(expiryTenor) != fittable_.end()){
