@@ -1,10 +1,15 @@
-#include "libormarketmodel.hpp"
-#include "shortratemodel.hpp"
+//#include "libormarketmodel.hpp"
+//#include "shortratemodel.hpp"
+#include "test.hpp"
 
 int main(){
-    std::string currency = "USD", exchange = "NY", modelDate = "2019-05-28", interpolationType = "LogLinear";
-    
-    HullWhiteModel hw(modelDate, currency, exchange, interpolationType);
+    //testSimpleCovarianceModels();
+    //testCapletPricing();
+    testCalibration();
+    //testSwaptionPricing();
+    //std::string currency = "USD", exchange = "NY", modelDate = "2019-05-28", interpolationType = "LogLinear";
+    //LiborMarketModel lmm(modelDate, currency, exchange, interpolationType);
+    //HullWhiteModel hw(modelDate, currency, exchange, interpolationType);
     //ExtendedCIRModel cir(modelDate, currency, exchange, interpolationType);
     //BlackKarasinskiModel bk(modelDate, currency, exchange, interpolationType);
     //std::string dayCounter = "30/360", interpolationType = "LogLinear";

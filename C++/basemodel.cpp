@@ -25,11 +25,6 @@ BaseModel::BaseModel(std::string& modelDate, std::string& currency, std::string&
                 parse_linear_instruments(key, instrument.value());
             }
             buildCurve();
-            std::vector<Time> times;
-            for(int i = 0; i < 100; i++){
-                times.push_back(i*0.01);
-            }
-            getCashDF(times);
         }
     }
     return;

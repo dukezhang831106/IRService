@@ -1,5 +1,30 @@
 #include "libormarketmodel.hpp"
 
+LiborMarketModel::LiborMarketModel(std::string &modelDate, std::string &currency, std::string &exchange, std::string& interpolationType) : BaseModel(modelDate, currency, exchange, interpolationType) { 
+    std::ifstream file("C++/data/configuration.json");
+    json output;
+    file >> output;
+    for(auto & exchange : output[getCurrency()]){
+        if (exchange["Exchange"] == getExchange()){
+            // parse general information
+            std::string holmask = exchange["Holidays"], settle = exchange["SettlementDays"], daycounter = exchange["DayCountConvention"];
+
+            for (auto & instrument : exchange["VolatilityInstruments"].items()){
+                std::string key(instrument.key());
+                parse_fitting_bucket(key, instrument.value());
+            }
+
+            for (auto & instrument : exchange["VolatilityInstruments"].items()){
+                std::string key(instrument.key());
+                parse_vol_instruments(key, instrument.value());
+            }
+            buildModel();
+        }
+    }
+    return;
+};
+
+
 void LiborMarketModel::parse_fitting_bucket(std::string& key, json& info){
     if (key == "CapFloorFittingGrid"){
 
@@ -22,7 +47,7 @@ void LiborMarketModel::parse_vol_instruments(std::string& key, json& info){
         << getModelDate() << "') AND \"Currency\"='USD' AND \"InstrumentType\"='" << key << "';";
     pqxx::result res = txn.exec(command.str());
     
-    /*if (key == "Swaption"){
+    if (key == "Swaption"){
         std::string fix_dct = info["FixedLegDayCountConvention"], fix_bdc = info["FixedLegBusinessDayConvention"], fix_freq = info["FixedLegFrequency"];
         std::string flt_dct = info["FloatingLegDayCountConvention"], flt_bdc = info["FloatingLegBusinessDayConvention"], flt_freq = info["FloatingLegFrequency"];
         std::string settle = info["SettlementDays"], indices = info["Index"];
@@ -38,7 +63,7 @@ void LiborMarketModel::parse_vol_instruments(std::string& key, json& info){
         LMMmodel_ = boost::shared_ptr<LiborForwardModel>(new LiborForwardModel(process, volModel, corrModel));
 
         for(int i = 0; i < res.size(); i++){
-            pqxx::result::tuple record = res[i];
+            pqxx::row record = res[i];
             GeneralInstrumentInformation instrument(record);
             std::string expiryTenor = "Swaption_" + instrument.expiry + "X" + instrument.tenor;
             if (fittable_.find(expiryTenor) != fittable_.end()){
@@ -55,11 +80,11 @@ void LiborMarketModel::parse_vol_instruments(std::string& key, json& info){
                         boost::shared_ptr<PricingEngine>(
                                     new LfmSwaptionEngine(LMMmodel_, getDiscountTermStructure())));
                     std::cout << expiryTenor << " inserted." << std::endl;
-                    modelCalibrator_.push_back(swaptionHelper);
+                    modelCalibrator_.push_back(swaptionHelper); 
             }
         }
         
-    }*/
+    }
 }
 
 void LiborMarketModel::buildModel(){

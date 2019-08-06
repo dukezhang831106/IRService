@@ -13,7 +13,7 @@ class LiborMarketModel : public BaseModel{
         void parse_vol_instruments(std::string& key, json& instrument);
 
     public:
-        LiborMarketModel(std::string &modelDate, std::string &currency, std::string &exchange, std::string& interpolationType) : BaseModel(modelDate, currency, exchange, interpolationType) {};
+        LiborMarketModel(std::string &modelDate, std::string &currency, std::string &exchange, std::string& interpolationType);
         void buildModel();
         std::vector<CalibrationReport> generateModelCalibrationReport();
 };
