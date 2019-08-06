@@ -55,7 +55,7 @@ void LiborMarketModel::parse_vol_instruments(std::string& key, json& info){
         bool eom = info["EOM"];
         int settlement_days = boost::lexical_cast<int>(settle.substr(0, settle.size() - 1));
             
-        const Size size = 30;
+        const Size size = 120;
         boost::shared_ptr<LiborForwardModelProcess> process(new LiborForwardModelProcess(size, index));
         // set-up the model
         boost::shared_ptr<LmVolatilityModel> volModel(new LmExtLinearExponentialVolModel(process->fixingTimes(), 0.5,0.6,0.1,0.1));
