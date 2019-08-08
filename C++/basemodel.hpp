@@ -9,7 +9,9 @@
 #include <boost/integer/integer_log2.hpp>
 
 #include <ql/quantlib.hpp>
-
+#include <boost/numeric/ublas/vector.hpp>
+#include <boost/numeric/ublas/matrix.hpp>
+#include <boost/numeric/ublas/io.hpp>
 #include <pqxx/pqxx>
 
 #include <boost/lexical_cast.hpp>
@@ -19,10 +21,29 @@
 #include <iostream>
 #include <vector>
 #include <set>
+#include <chrono>
 #include "json.hpp"
 
 using namespace QuantLib;
 using json = nlohmann::json;
+
+ struct InterestRateTreeNode{
+     Real rate;
+     std::vector<InterestRateTreeNode*> children;
+     InterestRateTreeNode(Real& r, int& numPaths) : rate(r) { 
+         for(int i = 0; i < numPaths; i++){
+             children.push_back(NULL);
+         }}
+ };
+
+struct Request{
+    std::string modelType;
+    std::string modelDate;
+    std::string interpolationType;
+    std::string currency;
+    std::string exchange;
+    Request(std::string& model, std::string& date, std::string& interp, std::string& curr, std::string& ex) : modelType(model), modelDate(date), interpolationType(interp), currency(curr), exchange(ex) {};
+};
 
 struct GeneralInstrumentInformation{
     Date date;
@@ -57,8 +78,14 @@ struct GeneralInstrumentInformation{
 };
 
 struct CalibrationReport{
-    std::string instrumentType, expiry, tenor, source;
+    std::string instrumentType, expiry, tenor;
     double expected, calculated, diff;
+    CalibrationReport(std::string& instr, std::string& exp, std::string& tnr, double quote = 0.0, double calc = 0.0, double error = 0.0) : instrumentType(instr), expiry(exp), tenor(tnr), expected(quote), calculated(calc), diff(error) {};
+};
+
+struct MonteCarloPath{
+    std::map<Time, Real> path;
+    MonteCarloPath(std::map<Time, Real>& p) : path(p) {};
 };
 
 class BaseModel {
@@ -82,8 +109,6 @@ class BaseModel {
         boost::shared_ptr<IborIndex> parse_indices(std::string& indices);
         void buildCurve();
         virtual void buildModel() = 0;
-        std::vector<CalibrationReport> generateCurveCalibrationReport();
-        //virtual std::vector<CalibrationReport> generateModelCalibrationReport() = 0;
         void getCurveZeroRates(std::vector<Time>& times);
         void getCashDF(std::vector<Time>& times);
 
@@ -96,7 +121,7 @@ class BaseModel {
         std::vector<boost::shared_ptr<RateHelper>> getCurveCalibrator() { return curveCalibrator_; }
         RelinkableHandle<YieldTermStructure> getDiscountTermStructure() { return discountingTermStructure_; }
         RelinkableHandle<YieldTermStructure> getForecastTermStructure() { return forecastingTermStructure_; }
-
+        boost::numeric::ublas::matrix<double> parseInterestRateTreeToMatrix();
 };
 
 #endif

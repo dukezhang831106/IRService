@@ -73,8 +73,9 @@ void HullWhiteModel::parse_vol_instruments(std::string& key, json& info){
                                         CalibrationHelper::ImpliedVolError));
 
                 swaptionHelper->setPricingEngine(engine);
-                std::cout << expiryTenor << " inserted." << std::endl;
                 modelCalibrator_.push_back(swaptionHelper);
+                CalibrationReport instr(key, instrument.expiry, instrument.tenor);
+                calibrationReports_.push_back(instr);
             }
         }
         
@@ -89,11 +90,46 @@ void HullWhiteModel::buildModel(){
     HWmodel_->calibrate(modelCalibrator_, optimizationMethod, endCriteria);
     EndCriteria::Type ecType = HWmodel_->endCriteria();
 
-    std::cout << HWmodel_.get()->params() << std::endl;
+    Real calculated = 0.0;
+    for (int i=0; i<modelCalibrator_.size(); ++i) {
+        calibrationReports_[i].diff = modelCalibrator_[i]->calibrationError();
+        calibrationReports_[i].calculated = modelCalibrator_[i]->modelValue();
+        calibrationReports_[i].expected = modelCalibrator_[i]->marketValue();
+        calculated += std::pow(calibrationReports_[i].diff, 2.0);
+    }
     return;
 }
 
-ExtendedCIRModel::ExtendedCIRModel(std::string &modelDate, std::string &currency, std::string &exchange, std::string& interpolationType) : BaseModel(modelDate, currency, exchange, interpolationType) { 
+void HullWhiteModel::generateMonteCarloPaths(int& numPaths, int& timeSteps, double& maturity){
+    boost::shared_ptr<StochasticProcess1D> hwProcess(new HullWhiteProcess(getDiscountTermStructure(), HWmodel_.get()->a(), HWmodel_.get()->sigma()));
+    // type definition for complex declaration
+    typedef RandomSequenceGenerator<CLGaussianRng<MersenneTwisterUniformRng>> GSG;
+    // create mersenne twister uniform random generator
+    unsigned long seed = std::chrono::system_clock::now().time_since_epoch().count();;
+    MersenneTwisterUniformRng generator(seed);
+    // create gaussian generator by using central limit transformation method
+    CLGaussianRng<MersenneTwisterUniformRng> gaussianGenerator(generator);
+    GSG gaussianSequenceGenerator(timeSteps, gaussianGenerator);
+    // create path generator using Hull-White process and gaussian sequence generator
+    PathGenerator<GSG> pathGenerator(hwProcess, maturity, timeSteps, gaussianSequenceGenerator, false);
+    TimeGrid times = pathGenerator.timeGrid();
+    timeGrid_.resize(timeSteps + 1);
+    std::copy(times.begin(), times.end(), timeGrid_.begin());
+    //std::cout << timeGrid_ << std::endl;
+    paths_.resize(numPaths, timeSteps + 1);
+    for(int i = 0; i < numPaths; i++){
+        Sample<Path> IRpath = pathGenerator.next();
+        for(int j = 0; j < IRpath.value.length(); j++){
+            paths_(i, j) = IRpath.value.at(j);
+        }
+    }
+    //std::cout << paths_ << std::endl;
+    return;
+}
+
+
+
+CoxIngersollRossModel::CoxIngersollRossModel(std::string &modelDate, std::string &currency, std::string &exchange, std::string& interpolationType) : BaseModel(modelDate, currency, exchange, interpolationType) { 
     std::ifstream file("C++/data/configuration.json");
     json output;
     file >> output;
@@ -117,7 +153,7 @@ ExtendedCIRModel::ExtendedCIRModel(std::string &modelDate, std::string &currency
     return;
 };
 
-void ExtendedCIRModel::parse_fitting_bucket(std::string& key, json& info){
+void CoxIngersollRossModel::parse_fitting_bucket(std::string& key, json& info){
     if (key == "CapFloorFittingGrid"){
 
     }
@@ -130,7 +166,7 @@ void ExtendedCIRModel::parse_fitting_bucket(std::string& key, json& info){
     return;
 }
 
-void ExtendedCIRModel::parse_vol_instruments(std::string& key, json& info){
+void CoxIngersollRossModel::parse_vol_instruments(std::string& key, json& info){
     pqxx::connection conn("dbname=EikonInstrument user=postgres host=127.0.0.1 port=5432 password=123456");
     pqxx::work txn(conn);
 
@@ -147,9 +183,9 @@ void ExtendedCIRModel::parse_vol_instruments(std::string& key, json& info){
         bool eom = info["EOM"];
         int settlement_days = boost::lexical_cast<int>(settle.substr(0, settle.size() - 1));
         
-        eCIRmodel_ = boost::shared_ptr<ExtendedCoxIngersollRoss>(new ExtendedCoxIngersollRoss(getDiscountTermStructure()));
+        CIRmodel_ = boost::shared_ptr<ExtendedCoxIngersollRoss>(new ExtendedCoxIngersollRoss(getDiscountTermStructure()));
         boost::shared_ptr<IborIndex> index = makeIndex(indices);
-        boost::shared_ptr<PricingEngine> engine(new JamshidianSwaptionEngine(eCIRmodel_));
+        boost::shared_ptr<PricingEngine> engine(new JamshidianSwaptionEngine(CIRmodel_));
 
         for(int i = 0; i < res.size(); i++){
             pqxx::row record = res[i];
@@ -166,25 +202,50 @@ void ExtendedCIRModel::parse_vol_instruments(std::string& key, json& info){
                                         CalibrationHelper::ImpliedVolError));
 
                 swaptionHelper->setPricingEngine(engine);
-                std::cout << expiryTenor << " inserted." << std::endl;
                 modelCalibrator_.push_back(swaptionHelper);
+                CalibrationReport instr(key, instrument.expiry, instrument.tenor);
+                calibrationReports_.push_back(instr);
             }
         }
         
     }
 }
 
-void ExtendedCIRModel::buildModel(){
+void CoxIngersollRossModel::buildModel(){
     LevenbergMarquardt optimizationMethod(1.0e-8,1.0e-8,1.0e-8);
     EndCriteria endCriteria(10000, 100, 1e-6, 1e-8, 1e-8);
 
     //Optimize
-    eCIRmodel_->calibrate(modelCalibrator_, optimizationMethod, endCriteria);
-    EndCriteria::Type ecType = eCIRmodel_->endCriteria();
+    CIRmodel_->calibrate(modelCalibrator_, optimizationMethod, endCriteria);
+    EndCriteria::Type ecType = CIRmodel_->endCriteria();
 
-    std::cout << eCIRmodel_.get()->params() << std::endl;
+    Real calculated = 0.0;
+    for (int i=0; i<modelCalibrator_.size(); ++i) {
+        calibrationReports_[i].diff = modelCalibrator_[i]->calibrationError();
+        calibrationReports_[i].calculated = modelCalibrator_[i]->modelValue();
+        calibrationReports_[i].expected = modelCalibrator_[i]->marketValue();
+        calculated += std::pow(calibrationReports_[i].diff, 2.0);
+    }
     return;
 }
+
+void CoxIngersollRossModel::generateMonteCarloPaths(int& numPaths, int& timeSteps, double& maturity){
+    TimeGrid times(maturity, timeSteps);
+    boost::shared_ptr<OneFactorModel::ShortRateDynamics> CIRTree(CIRmodel_->dynamics());
+    timeGrid_.resize(timeSteps + 1);
+    std::copy(times.begin(), times.end(), timeGrid_.begin());
+    Real r0 = CIRTree->shortRate(0.0, CIRTree->process()->x0());
+    std::cout << r0 << std::endl;
+    /*InterestRateTreeNode treeStructure(r0, numPaths);
+    for(int i = 1; i < times.size(); i++){
+        for(int j = 0; j < numPaths; j++){
+            Real dW = 0.01;
+            CIRTree.get()->process().get()->evolve();
+        }
+    } */
+    return;
+}
+
 
 BlackKarasinskiModel::BlackKarasinskiModel(std::string &modelDate, std::string &currency, std::string &exchange, std::string& interpolationType) : BaseModel(modelDate, currency, exchange, interpolationType) { 
     std::ifstream file("C++/data/configuration.json");
@@ -242,13 +303,6 @@ void BlackKarasinskiModel::parse_vol_instruments(std::string& key, json& info){
         
         BKmodel_ = boost::shared_ptr<BlackKarasinski>(new BlackKarasinski(getDiscountTermStructure()));
         boost::shared_ptr<IborIndex> index = makeIndex(indices);
-        /*std::vector<Time> modelTimes;
-        Date d0 = getSettlementDate();
-        for(auto& v : getCurveCalibrator()){
-            Date d = v.get()->maturityDate();
-            modelTimes.push_back(getDiscountTermStructure().currentLink().get()->dayCounter().yearFraction(d0, d));
-        }
-        TimeGrid grid(modelTimes.begin(), modelTimes.end());*/
         Size grid = 100;
         boost::shared_ptr<PricingEngine> engine(new TreeSwaptionEngine(BKmodel_, grid, getDiscountTermStructure()));
 
@@ -267,8 +321,9 @@ void BlackKarasinskiModel::parse_vol_instruments(std::string& key, json& info){
                                         CalibrationHelper::ImpliedVolError));
 
                 swaptionHelper->setPricingEngine(engine);
-                std::cout << expiryTenor << " inserted." << std::endl;
                 modelCalibrator_.push_back(swaptionHelper);
+                CalibrationReport instr(key, instrument.expiry, instrument.tenor);
+                calibrationReports_.push_back(instr);
             }
         }
         
@@ -283,6 +338,12 @@ void BlackKarasinskiModel::buildModel(){
     BKmodel_->calibrate(modelCalibrator_, optimizationMethod, endCriteria);
     EndCriteria::Type ecType = BKmodel_->endCriteria();
 
-    std::cout << BKmodel_.get()->params() << std::endl;
+    Real calculated = 0.0;
+    for (int i=0; i<modelCalibrator_.size(); ++i) {
+        calibrationReports_[i].diff = modelCalibrator_[i]->calibrationError();
+        calibrationReports_[i].calculated = modelCalibrator_[i]->modelValue();
+        calibrationReports_[i].expected = modelCalibrator_[i]->marketValue();
+        calculated += std::pow(calibrationReports_[i].diff, 2.0);
+    }
     return;
 }

@@ -50,7 +50,6 @@ void BaseModel::parse_linear_instruments(std::string& key, json& info){
             boost::shared_ptr<RateHelper> holder(new DepositRateHelper(Handle<Quote>(rate), parse_period(instrument.expiry), settlement_days, calendar_, parse_buisnessdayconvention(bdc), eom, parse_daycounter(dct)));
             curveData_.insert(std::make_pair(parse_period(instrument.expiry), instrument.quote/100.0));
             curveCalibrator_.push_back(holder);
-            std::cout << "Depo " << instrument.expiry << " inserted." << std::endl;
         }
     }
     else if (key == "Fut"){
@@ -63,7 +62,6 @@ void BaseModel::parse_linear_instruments(std::string& key, json& info){
             boost::shared_ptr<Quote> price(new SimpleQuote(instrument.quote));
             boost::shared_ptr<RateHelper> holder(new FuturesRateHelper(Handle<Quote>(price), IMM::date(instrument.expiry), frequency, calendar_, parse_buisnessdayconvention(bdc), eom, parse_daycounter(dct)));
             curveCalibrator_.push_back(holder);
-            std::cout << "Fut " << IMM::date(instrument.expiry) << " inserted." << std::endl;
         }
     }
     else if (key == "Swap"){
@@ -81,7 +79,6 @@ void BaseModel::parse_linear_instruments(std::string& key, json& info){
                 parse_frequency(fix_freq), parse_buisnessdayconvention(fix_bdc), parse_daycounter(fix_dct), parse_indices(indices)));
             curveData_.insert(std::make_pair(parse_period(instrument.expiry), instrument.quote/100.0));
             curveCalibrator_.push_back(holder);
-            std::cout << "Swap " << instrument.expiry << " inserted." << std::endl;
         }
     }
 }
@@ -206,21 +203,21 @@ void BaseModel::buildCurve(){
     if (interpolationType_ == "LogLinear"){
         boost::shared_ptr<YieldTermStructure> oisCurve(boost::make_shared<PiecewiseYieldCurve<Discount, LogLinear>>(settlementDays, oisIndex->fixingCalendar(), rateHelpers, oisIndex->dayCounter()));
         discountingTermStructure_.linkTo(oisCurve);
-        boost::shared_ptr<YieldTermStructure> fwdCurve(new PiecewiseYieldCurve<ForwardRate, LogLinear>(settlementDate_, curveCalibrator_, parse_daycounter(dayCounter_), tolerance));
+        boost::shared_ptr<YieldTermStructure> fwdCurve(new PiecewiseYieldCurve<ZeroYield, LogLinear>(settlementDate_, curveCalibrator_, parse_daycounter(dayCounter_), tolerance));
         forecastingTermStructure_.linkTo(fwdCurve);
         return;
     }
     else if(interpolationType_ == "Linear"){
         boost::shared_ptr<YieldTermStructure> oisCurve(boost::make_shared<PiecewiseYieldCurve<Discount, Linear>>(settlementDays, oisIndex->fixingCalendar(), rateHelpers, oisIndex->dayCounter()));
         discountingTermStructure_.linkTo(oisCurve);
-        boost::shared_ptr<YieldTermStructure> fwdCurve(new PiecewiseYieldCurve<ForwardRate, Linear>(settlementDate_, curveCalibrator_, parse_daycounter(dayCounter_), tolerance));
+        boost::shared_ptr<YieldTermStructure> fwdCurve(new PiecewiseYieldCurve<ZeroYield, Linear>(settlementDate_, curveCalibrator_, parse_daycounter(dayCounter_), tolerance));
         forecastingTermStructure_.linkTo(fwdCurve);
         return;
     }
     else if(interpolationType_ == "Cubic"){
         boost::shared_ptr<YieldTermStructure> oisCurve(boost::make_shared<PiecewiseYieldCurve<Discount, Cubic>>(settlementDays, oisIndex->fixingCalendar(), rateHelpers, oisIndex->dayCounter()));
         discountingTermStructure_.linkTo(oisCurve);
-        boost::shared_ptr<YieldTermStructure> fwdCurve(new PiecewiseYieldCurve<ForwardRate, Cubic>(settlementDate_, curveCalibrator_, parse_daycounter(dayCounter_), tolerance));
+        boost::shared_ptr<YieldTermStructure> fwdCurve(new PiecewiseYieldCurve<ZeroYield, Cubic>(settlementDate_, curveCalibrator_, parse_daycounter(dayCounter_), tolerance));
         forecastingTermStructure_.linkTo(fwdCurve);
         return;
     }
