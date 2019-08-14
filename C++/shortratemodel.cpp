@@ -230,19 +230,19 @@ void CoxIngersollRossModel::buildModel(){
 }
 
 void CoxIngersollRossModel::generateMonteCarloPaths(int& numPaths, int& timeSteps, double& maturity){
-    TimeGrid times(maturity, timeSteps);
-    boost::shared_ptr<OneFactorModel::ShortRateDynamics> CIRTree(CIRmodel_->dynamics());
+    TimeGrid grid(maturity, timeSteps);
     timeGrid_.resize(timeSteps + 1);
-    std::copy(times.begin(), times.end(), timeGrid_.begin());
-    Real r0 = CIRTree->shortRate(0.0, CIRTree->process()->x0());
-    std::cout << r0 << std::endl;
-    /*InterestRateTreeNode treeStructure(r0, numPaths);
-    for(int i = 1; i < times.size(); i++){
-        for(int j = 0; j < numPaths; j++){
-            Real dW = 0.01;
-            CIRTree.get()->process().get()->evolve();
-        }
-    } */
+    std::copy(grid.begin(), grid.end(), timeGrid_.begin());
+
+
+
+
+    TermStructureFittingParameter phi(getDiscountTermStructure());
+    boost::shared_ptr<Lattice> tree = CIRmodel_->tree(grid);
+    for(int i = 0; i < grid.size(); i++){
+        Time t = grid.at(i);
+        std::cout << tree.get()->grid(t) << std::endl;
+    }   
     return;
 }
 
@@ -344,6 +344,25 @@ void BlackKarasinskiModel::buildModel(){
         calibrationReports_[i].calculated = modelCalibrator_[i]->modelValue();
         calibrationReports_[i].expected = modelCalibrator_[i]->marketValue();
         calculated += std::pow(calibrationReports_[i].diff, 2.0);
+    }
+    return;
+}
+
+void BlackKarasinskiModel::generateMonteCarloPaths(int& numPaths, int& timeSteps, double& maturity){
+    double dt = maturity/timeSteps, alpha = BKmodel_->params()[0], sigma = BKmodel_->params()[1], V = dt*sigma*sigma;
+    std::vector<double> dr = {0, sigma*std::sqrt(3*dt)};
+    std::vector<std::vector<double>> j, probs, rates;
+    j.resize(timeSteps); probs.resize(timeSteps); rates.resize(timeSteps);
+    j[0] = {0.0};
+    for(int level = 0; level < timeSteps; level++){
+        std::transform(j[level].begin(), j[level].end(), rates[level].begin(), [&](double& x){ return x*dr[level]; });
+        if (level < timeSteps - 1){
+            std::vector<double> M(rates[level].size(), 0.0), ConnectJ(rates[level].size(), 0.0);
+            std::transform(rates[level].begin(), rates[level].end(), M.begin(), [&](double& x){ return -x*alpha*dt; });
+            // Calculate the indexes of the nodes in the next level that each node in this level connects to.
+            
+
+        }
     }
     return;
 }

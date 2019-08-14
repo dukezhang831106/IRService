@@ -27,15 +27,6 @@
 using namespace QuantLib;
 using json = nlohmann::json;
 
- struct InterestRateTreeNode{
-     Real rate;
-     std::vector<InterestRateTreeNode*> children;
-     InterestRateTreeNode(Real& r, int& numPaths) : rate(r) { 
-         for(int i = 0; i < numPaths; i++){
-             children.push_back(NULL);
-         }}
- };
-
 struct Request{
     std::string modelType;
     std::string modelDate;
