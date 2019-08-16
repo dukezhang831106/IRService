@@ -11,6 +11,7 @@
 #include <ql/quantlib.hpp>
 #include <boost/numeric/ublas/vector.hpp>
 #include <boost/numeric/ublas/matrix.hpp>
+#include <boost/numeric/ublas/matrix_proxy.hpp>
 #include <boost/numeric/ublas/io.hpp>
 #include <pqxx/pqxx>
 
@@ -34,6 +35,26 @@ struct Request{
     std::string currency;
     std::string exchange;
     Request(std::string& model, std::string& date, std::string& interp, std::string& curr, std::string& ex) : modelType(model), modelDate(date), interpolationType(interp), currency(curr), exchange(ex) {};
+};
+
+struct ProbabilityTree{
+    std::vector<boost::numeric::ublas::vector<double>> R;
+    std::vector<std::vector<int>> Connect;
+    std::vector<boost::numeric::ublas::matrix<double>> Prob;
+    std::vector<boost::numeric::ublas::vector<int>> Branches;
+    Date valDate;
+    std::vector<Date> matDates;
+    std::vector<double> dT;
+    boost::numeric::ublas::vector<double> dr;
+    double sigma, alpha;
+    ProbabilityTree(int num) : R(std::vector<boost::numeric::ublas::vector<double>>(num, boost::numeric::ublas::vector<double>())), Connect(std::vector<std::vector<int>>(num-1, std::vector<int>())), Prob(std::vector<boost::numeric::ublas::matrix<double>>(num-1, boost::numeric::ublas::matrix<double>())) {};
+    ProbabilityTree(Date& vDate, std::vector<Date>& mDates, double& vol, double& speed, std::vector<double>& dtSpan) : valDate(vDate), matDates(mDates), sigma(vol), alpha(speed), dT(dtSpan) {
+        int num = dtSpan.size() - 1;
+        R = std::vector<boost::numeric::ublas::vector<double>>(num, boost::numeric::ublas::vector<double>());
+        Branches = std::vector<boost::numeric::ublas::vector<int>>(num, boost::numeric::ublas::vector<int>());
+        Connect = std::vector<std::vector<int>>(num-1, std::vector<int>());
+        Prob = std::vector<boost::numeric::ublas::matrix<double>>(num-1, boost::numeric::ublas::matrix<double>());
+    }
 };
 
 struct GeneralInstrumentInformation{
@@ -96,12 +117,11 @@ class BaseModel {
         Period parse_period(std::string& p);
         Frequency parse_frequency(std::string& freq);
         void parse_linear_instruments(std::string& key, json& instrument);
-
         boost::shared_ptr<IborIndex> parse_indices(std::string& indices);
         void buildCurve();
         virtual void buildModel() = 0;
-        void getCurveZeroRates(std::vector<Time>& times);
-        void getCashDF(std::vector<Time>& times);
+        std::vector<double> getCurveZeroRates(std::vector<double>& times);
+        std::vector<double> getCashDF(std::vector<double>& times);
 
         std::string getCurrency() { return currency_; }
         std::string getExchange() { return exchange_; }
@@ -109,6 +129,7 @@ class BaseModel {
         Date getModelModelDate() { return modelModelDate_;}
         Date getSettlementDate() { return settlementDate_; }
         Calendar getCalendar() { return calendar_; }
+        std::string getDayCounter() { return dayCounter_; }
         std::vector<boost::shared_ptr<RateHelper>> getCurveCalibrator() { return curveCalibrator_; }
         RelinkableHandle<YieldTermStructure> getDiscountTermStructure() { return discountingTermStructure_; }
         RelinkableHandle<YieldTermStructure> getForecastTermStructure() { return forecastingTermStructure_; }

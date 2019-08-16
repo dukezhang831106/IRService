@@ -236,16 +236,21 @@ boost::shared_ptr<IborIndex> BaseModel::makeIndex(std::string& indices) {
     return boost::shared_ptr<IborIndex>(new USDLibor(parse_period(tenor), getDiscountTermStructure()));
 }
 
-void BaseModel::getCurveZeroRates(std::vector<Time>& times){    
+std::vector<double> BaseModel::getCurveZeroRates(std::vector<double>& times){    
+    std::vector<double> zRate(times.size());
+    DayCounter daycounter = parse_daycounter(dayCounter_);
     for(int i = 0; i < times.size(); i++){
-        Rate r = discountingTermStructure_.currentLink().get()->zeroRate(times[i], Compounded, Semiannual);
-        std::cout << times[i] << ": " << r << std::endl;
+        Time t = times[i];
+        zRate[i] = discountingTermStructure_.currentLink()->zeroRate(t, Compounded, Semiannual);
     }
+    return zRate;
 }
 
-void BaseModel::getCashDF(std::vector<Time>& times){    
+std::vector<double> BaseModel::getCashDF(std::vector<double>& times){    
+    std::vector<double> disc(times.size());
     for(int i = 0; i < times.size(); i++){
-        Rate r = discountingTermStructure_.currentLink().get()->discount(times[i]);
-        std::cout << times[i] << ": " << r << std::endl;
+        Time t = times[i];
+        disc[i] = discountingTermStructure_.currentLink().get()->discount(t);
     }
+    return disc;
 }

@@ -29,9 +29,9 @@ int main(int argc, char** argv){
             //for(auto& v : report){
             //    std::cout << v.instrumentType << " " << v.expiry << "X" << v.tenor << ", expected: " << v.expected << ", implied: " << v.calculated << ", diff: " << v.diff << std::endl;
             //}
-            int numPaths = 3, timeSteps = 10;
-            double maturity = 30.0;
-            cir.generateMonteCarloPaths(numPaths, timeSteps, maturity);
+            //int numPaths = 3, timeSteps = 10;
+            //double maturity = 30.0;
+            //cir.generateMonteCarloPaths(numPaths, timeSteps, maturity);
             //boost::numeric::ublas::vector<double> timeGrids = cir.getTimeGrid();
             //boost::numeric::ublas::matrix<double> ratePaths = cir.getMonteCarloPaths();
             //std::cout << "Time Grid: " << timeGrids << std::endl;
@@ -39,19 +39,19 @@ int main(int argc, char** argv){
             return EXIT_SUCCESS;
         }
         else if (modelType == "BlackKarasinski" || modelType == "BK"){
-            double a = 1.11795e-11, sigma = 0.160181;
-            BlackKarasinskiModel bk(modelDate, currency, exchange, interpolationType, a, sigma);
-            /*std::vector<CalibrationReport> report = bk.get_calibrationReport();
+            BlackKarasinskiModel bk(modelDate, currency, exchange, interpolationType);
+            std::vector<CalibrationReport> report = bk.getCalibrationReport();
             for(auto& v : report){
                 std::cout << v.instrumentType << " " << v.expiry << "X" << v.tenor << ", expected: " << v.expected << ", implied: " << v.calculated << ", diff: " << v.diff << std::endl;
-            }*/
-            int numPaths = 3, timeSteps = 10;
-            double maturity = 30.0;
-            bk.generateMonteCarloPaths(numPaths, timeSteps, maturity);
-            boost::numeric::ublas::vector<double> timeGrids = bk.getTimeGrid();
-            boost::numeric::ublas::matrix<double> ratePaths = bk.getMonteCarloPaths();
-            std::cout << "Time Grid: " << timeGrids << std::endl;
-            std::cout << "Simulated Paths: " << ratePaths << std::endl;
+            }
+            std::vector<Period> maturities = {1*Years, 2*Years, 3*Years, 5*Years, 7*Years, 10*Years, 12*Years, 15*Years, 20*Years};
+            ProbabilityTree ptree = bk.getLattice(maturities);
+            for(int level = 0; level < maturities.size(); level++){
+            std::cout << "Level: " << level << ", Date: " << ptree.matDates[level] << ", fwd rate: " << ptree.R[level] << std::endl;
+                if (level > 0){
+                    std::cout << "prob " << level-1 << " to " << level << ": " << ptree.Prob[level-1] << std::endl;
+                }
+            }
             return EXIT_SUCCESS;
         }
         else if (modelType == "LMM" || modelType == "BGM"){
