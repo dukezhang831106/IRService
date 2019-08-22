@@ -38,7 +38,7 @@ void HullWhiteModel::parse_fitting_bucket(std::string& key, json& info){
 }
 
 void HullWhiteModel::parse_vol_instruments(std::string& key, json& info){
-    pqxx::connection conn("dbname=EikonInstrument user=postgres host=127.0.0.1 port=1111 password=123456");
+    pqxx::connection conn("dbname=EikonInstrument user=postgres host=127.0.0.1 port=5432 password=123456");
     pqxx::work txn(conn);
 
     std::stringstream command;
@@ -165,7 +165,7 @@ void CoxIngersollRossModel::parse_fitting_bucket(std::string& key, json& info){
 }
 
 void CoxIngersollRossModel::parse_vol_instruments(std::string& key, json& info){
-    pqxx::connection conn("dbname=EikonInstrument user=postgres host=127.0.0.1 port=1111 password=123456");
+    pqxx::connection conn("dbname=EikonInstrument user=postgres host=127.0.0.1 port=5432 password=123456");
     pqxx::work txn(conn);
 
     std::stringstream command;
@@ -288,8 +288,8 @@ void CoxIngersollRossModel::remove_duplicates(std::vector<double>& vec){
 
 ProbabilityTree CoxIngersollRossModel::getLattice(std::vector<Period>& maturities){
     Calendar calendar = getCalendar();
-    std::string dc = getDayCounter();
-    DayCounter daycounter = parse_daycounter(dc);
+    std::string dct = getDayCounter();
+    DayCounter daycounter = parse_daycounter(dct);
     Date valDate = getModelModelDate();
     std::vector<Date> volDates(maturities.size());
     std::transform(maturities.begin(), maturities.end(), volDates.begin(), [&](Period& p){ return calendar.advance(valDate, p); });
@@ -515,7 +515,7 @@ void BlackKarasinskiModel::parse_fitting_bucket(std::string& key, json& info){
 }
 
 void BlackKarasinskiModel::parse_vol_instruments(std::string& key, json& info){
-    pqxx::connection conn("dbname=EikonInstrument user=postgres host=127.0.0.1 port=1111 password=123456");
+    pqxx::connection conn("dbname=EikonInstrument user=postgres host=127.0.0.1 port=5432 password=123456");
     pqxx::work txn(conn);
 
     std::stringstream command;
@@ -578,7 +578,7 @@ void BlackKarasinskiModel::buildModel(){
     return;
 }
 
-/*void BlackKarasinskiModel::buildProbabililtyTree(ProbabilityTree& ptree){
+void BlackKarasinskiModel::buildProbabililtyTree(ProbabilityTree& ptree){
     int numLevels = ptree.R.size();
     boost::numeric::ublas::vector<double> V(numLevels), dr(numLevels+1); dr[0] = 0.0;
     for(int i = 0; i < numLevels; i++){
@@ -618,14 +618,14 @@ void BlackKarasinskiModel::buildModel(){
             ptree.Branches[level+1].resize(thisLevelJ.size());
             std::copy(thisLevelJ.begin(), thisLevelJ.end(), ptree.Branches[level+1].begin());
             
-            boost::numeric::ublas::matrix<int> connection;
-            for_each(ConnectJ.begin(), ConnectJ.end(), [&](double &x) { std::vector<double>::iterator it = std::find(thisLevelJ.begin(), thisLevelJ.end(), x); connection.push_back(std::distance(thisLevelJ.begin(), it)); });
+            boost::numeric::ublas::matrix<int> connection(0, 0);
+            for_each(ConnectJ.begin(), ConnectJ.end(), [&](double &x) { std::vector<double>::iterator it = std::find(thisLevelJ.begin(), thisLevelJ.end(), x); connection.resize(connection.size1()+1, 1); connection(connection.size1()-1, 0) = std::distance(thisLevelJ.begin(), it); });
             
             ptree.Connect[level] = connection;
         }   
     }
     ptree.dr = dr;
-}*/
+}
 
 // solve for BK tree shift by Newton's method
 double BlackKarasinskiModel::fsolve(double& init, double& targetPrice , boost::numeric::ublas::vector<double>& branches, boost::numeric::ublas::vector<double>& treeLevel, double& rateDelta, double& timeDelta){
@@ -648,7 +648,7 @@ double BlackKarasinskiModel::fsolve(double& init, double& targetPrice , boost::n
     return curr;
 }
 
-/*ProbabilityTree BlackKarasinskiModel::getLattice(std::vector<Period>& maturities){
+ProbabilityTree BlackKarasinskiModel::getLattice(std::vector<Period>& maturities){
     Calendar calendar = getCalendar();
     std::string dc = getDayCounter();
     DayCounter daycounter = parse_daycounter(dc);
@@ -676,9 +676,10 @@ double BlackKarasinskiModel::fsolve(double& init, double& targetPrice , boost::n
     ADPTree[0] = boost::numeric::ublas::vector<double>(1, 1.0);
     ptree.R[0] = boost::numeric::ublas::vector<double>(1, shift[0]);
     for (int level = 1; level < numLevels; level++){
-        boost::numeric::ublas::matrix<int> PrevConn(ptree.Connect[level - 1].size(), 3, 1);
+        boost::numeric::ublas::matrix<int> PrevConn(ptree.Connect[level - 1].size1(), 3, 1);
         boost::numeric::ublas::matrix_column<boost::numeric::ublas::matrix<int>> prev(PrevConn, 1);
-        std::copy(ptree.Connect[level - 1].begin(), ptree.Connect[level - 1].end(), prev.begin());
+        boost::numeric::ublas::vector<int> pconn(boost::numeric::ublas::matrix_column<boost::numeric::ublas::matrix<int>>(ptree.Connect[level - 1], 0));
+        std::copy(pconn.begin(), pconn.end(), prev.begin());
         boost::numeric::ublas::column(PrevConn, 1) = prev;
         boost::numeric::ublas::column(PrevConn, 0) = boost::numeric::ublas::column(PrevConn, 1) - boost::numeric::ublas::column(PrevConn, 0);
         boost::numeric::ublas::column(PrevConn, 2) = boost::numeric::ublas::column(PrevConn, 1) + boost::numeric::ublas::column(PrevConn, 2);
@@ -722,4 +723,4 @@ double BlackKarasinskiModel::fsolve(double& init, double& targetPrice , boost::n
     }
     
     return ptree;
-}*/
+}

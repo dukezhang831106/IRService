@@ -39,7 +39,7 @@ int main(int argc, char** argv){
             }
             return EXIT_SUCCESS;
         }
-        /*else if (modelType == "BlackKarasinski" || modelType == "BK"){
+        else if (modelType == "BlackKarasinski" || modelType == "BK"){
             BlackKarasinskiModel bk(modelDate, currency, exchange, interpolationType);
             std::vector<CalibrationReport> report = bk.getCalibrationReport();
             for(auto& v : report){
@@ -55,7 +55,7 @@ int main(int argc, char** argv){
                 }
             }
             return EXIT_SUCCESS;
-        }*/
+        }
         else if (modelType == "LMM" || modelType == "BGM"){
             int numPaths = 3, timeSteps = 10;
             double maturity = 30.0;
