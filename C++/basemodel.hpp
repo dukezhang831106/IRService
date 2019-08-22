@@ -39,20 +39,30 @@ struct Request{
 
 struct ProbabilityTree{
     std::vector<boost::numeric::ublas::vector<double>> R;
-    std::vector<std::vector<int>> Connect;
+    std::vector<boost::numeric::ublas::vector<double>> Fwd;
+    std::vector<boost::numeric::ublas::matrix<int>> Connect;
     std::vector<boost::numeric::ublas::matrix<double>> Prob;
     std::vector<boost::numeric::ublas::vector<int>> Branches;
     Date valDate;
     std::vector<Date> matDates;
     std::vector<double> dT;
     boost::numeric::ublas::vector<double> dr;
-    double sigma, alpha;
-    ProbabilityTree(int num) : R(std::vector<boost::numeric::ublas::vector<double>>(num, boost::numeric::ublas::vector<double>())), Connect(std::vector<std::vector<int>>(num-1, std::vector<int>())), Prob(std::vector<boost::numeric::ublas::matrix<double>>(num-1, boost::numeric::ublas::matrix<double>())) {};
-    ProbabilityTree(Date& vDate, std::vector<Date>& mDates, double& vol, double& speed, std::vector<double>& dtSpan) : valDate(vDate), matDates(mDates), sigma(vol), alpha(speed), dT(dtSpan) {
+    double sigma, alpha, theta;
+    ProbabilityTree(int num) : R(std::vector<boost::numeric::ublas::vector<double>>(num, boost::numeric::ublas::vector<double>())), Fwd(std::vector<boost::numeric::ublas::vector<double>>(num, boost::numeric::ublas::vector<double>())), Connect(std::vector<boost::numeric::ublas::matrix<int>>(num-1, boost::numeric::ublas::matrix<int>())), Prob(std::vector<boost::numeric::ublas::matrix<double>>(num-1, boost::numeric::ublas::matrix<double>())) {};
+    ProbabilityTree(Date& vDate, std::vector<Date>& mDates, double& vol, double& level, double& speed, std::vector<double>& dtSpan) : valDate(vDate), matDates(mDates), sigma(vol), alpha(speed), theta(level), dT(dtSpan) {
         int num = dtSpan.size() - 1;
         R = std::vector<boost::numeric::ublas::vector<double>>(num, boost::numeric::ublas::vector<double>());
+        Fwd = std::vector<boost::numeric::ublas::vector<double>>(num, boost::numeric::ublas::vector<double>());
         Branches = std::vector<boost::numeric::ublas::vector<int>>(num, boost::numeric::ublas::vector<int>());
-        Connect = std::vector<std::vector<int>>(num-1, std::vector<int>());
+        Connect = std::vector<boost::numeric::ublas::matrix<int>>(num-1, boost::numeric::ublas::matrix<int>());
+        Prob = std::vector<boost::numeric::ublas::matrix<double>>(num-1, boost::numeric::ublas::matrix<double>());
+    }
+    ProbabilityTree(Date& vDate, std::vector<Date>& mDates, double& vol, double& speed, std::vector<double>& dtSpan) : valDate(vDate), matDates(mDates), sigma(vol), alpha(speed), theta(0.0), dT(dtSpan) {
+        int num = dtSpan.size() - 1;
+        R = std::vector<boost::numeric::ublas::vector<double>>(num, boost::numeric::ublas::vector<double>());
+        Fwd = std::vector<boost::numeric::ublas::vector<double>>(num, boost::numeric::ublas::vector<double>());
+        Branches = std::vector<boost::numeric::ublas::vector<int>>(num, boost::numeric::ublas::vector<int>());
+        Connect = std::vector<boost::numeric::ublas::matrix<int>>(num-1, boost::numeric::ublas::matrix<int>());
         Prob = std::vector<boost::numeric::ublas::matrix<double>>(num-1, boost::numeric::ublas::matrix<double>());
     }
 };

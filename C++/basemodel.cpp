@@ -31,7 +31,7 @@ BaseModel::BaseModel(std::string& modelDate, std::string& currency, std::string&
 }
 
 void BaseModel::parse_linear_instruments(std::string& key, json& info){
-    pqxx::connection conn("dbname=EikonInstrument user=postgres host=127.0.0.1 port=5432 password=123456");
+    pqxx::connection conn("dbname=EikonInstrument user=postgres host=127.0.0.1 port=1111 password=123456");
     pqxx::work txn(conn);
 
     std::stringstream command;
@@ -100,6 +100,8 @@ DayCounter BaseModel::parse_daycounter(std::string& dct){
         return Actual365Fixed();
     else if (dct == "Actual/Actual")
         return ActualActual();
+    else if (dct == "Actual/365NL")
+        return Actual365NoLeap();
     return Actual360();
 }
 

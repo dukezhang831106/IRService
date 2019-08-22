@@ -39,7 +39,7 @@ void LiborMarketModel::parse_fitting_bucket(std::string& key, json& info){
 }
 
 void LiborMarketModel::parse_vol_instruments(std::string& key, json& info){
-    pqxx::connection conn("dbname=EikonInstrument user=postgres host=127.0.0.1 port=5432 password=123456");
+    pqxx::connection conn("dbname=EikonInstrument user=postgres host=127.0.0.1 port=1111 password=123456");
     pqxx::work txn(conn);
 
     std::stringstream command;
