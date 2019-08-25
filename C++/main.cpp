@@ -48,7 +48,7 @@ int main(int argc, char** argv){
             std::vector<Period> maturities = {1*Years, 2*Years, 3*Years, 5*Years, 7*Years, 10*Years, 12*Years, 15*Years, 20*Years};
             ProbabilityTree ptree = bk.getLattice(maturities);
             for(int level = 0; level < maturities.size(); level++){
-                std::cout << "Level: " << level << ", Date: " << ptree.matDates[level] << ", fwd rate: " << ptree.R[level] << std::endl;
+                std::cout << "Level: " << level << ", Date: " << ptree.matDates[level] << ", fwd rate: " << ptree.Fwd[level] << std::endl;
                 if (level > 0){
                     std::cout << std::endl;
                     std::cout << "prob " << level-1 << " to " << level << ": " << ptree.Prob[level-1] << std::endl;

@@ -38,7 +38,7 @@ void HullWhiteModel::parse_fitting_bucket(std::string& key, json& info){
 }
 
 void HullWhiteModel::parse_vol_instruments(std::string& key, json& info){
-    pqxx::connection conn("dbname=EikonInstrument user=postgres host=127.0.0.1 port=5432 password=123456");
+    pqxx::connection conn("dbname=EikonInstrument user=postgres host=127.0.0.1 port=1111 password=123456");
     pqxx::work txn(conn);
 
     std::stringstream command;
@@ -165,7 +165,7 @@ void CoxIngersollRossModel::parse_fitting_bucket(std::string& key, json& info){
 }
 
 void CoxIngersollRossModel::parse_vol_instruments(std::string& key, json& info){
-    pqxx::connection conn("dbname=EikonInstrument user=postgres host=127.0.0.1 port=5432 password=123456");
+    pqxx::connection conn("dbname=EikonInstrument user=postgres host=127.0.0.1 port=1111 password=123456");
     pqxx::work txn(conn);
 
     std::stringstream command;
@@ -289,10 +289,11 @@ void CoxIngersollRossModel::remove_duplicates(std::vector<double>& vec){
 ProbabilityTree CoxIngersollRossModel::getLattice(std::vector<Period>& maturities){
     Calendar calendar = getCalendar();
     std::string dct = getDayCounter();
-    DayCounter daycounter = parse_daycounter(dct);
+    DayCounter daycounter = Actual365NoLeap();
     Date valDate = getModelModelDate();
-    std::vector<Date> volDates(maturities.size());
-    std::transform(maturities.begin(), maturities.end(), volDates.begin(), [&](Period& p){ return calendar.advance(valDate, p); });
+    std::vector<Date> volDates(maturities.size() + 1);
+    volDates[0] = valDate;
+    std::transform(maturities.begin(), maturities.end(), volDates.begin() + 1, [&](Period& p){ return calendar.advance(valDate, p); });
     Date alphaDate = volDates[volDates.size() - 1];
 
     double thetaCurve = CIRmodel_->params()[0], alphaCurve = CIRmodel_->params()[1], volCurve = CIRmodel_->params()[2];
@@ -515,7 +516,7 @@ void BlackKarasinskiModel::parse_fitting_bucket(std::string& key, json& info){
 }
 
 void BlackKarasinskiModel::parse_vol_instruments(std::string& key, json& info){
-    pqxx::connection conn("dbname=EikonInstrument user=postgres host=127.0.0.1 port=5432 password=123456");
+    pqxx::connection conn("dbname=EikonInstrument user=postgres host=127.0.0.1 port=1111 password=123456");
     pqxx::work txn(conn);
 
     std::stringstream command;
@@ -719,7 +720,7 @@ ProbabilityTree BlackKarasinskiModel::getLattice(std::vector<Period>& maturities
         boost::numeric::ublas::vector<double> r = fwdRates[level];
         std::transform(r.begin(), r.end(), r.begin(), [](double& x) { return std::exp(x); });
         std::transform(r.begin(), r.end(), fwdRates[level].begin(), [&](double& x) { return std::exp(x*ptree.dT[level+1]); });
-        ptree.R[level] = fwdRates[level];
+        ptree.Fwd[level] = fwdRates[level];
     }
     
     return ptree;
