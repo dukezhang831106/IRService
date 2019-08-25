@@ -125,7 +125,135 @@ void HullWhiteModel::generateMonteCarloPaths(int& numPaths, int& timeSteps, doub
     return;
 }
 
+void HullWhiteModel::buildProbabililtyTree(ProbabilityTree& ptree){
+    int numLevels = ptree.R.size();
+    boost::numeric::ublas::vector<double> V(numLevels), dr(numLevels+1); dr[0] = 0.0;
+    for(int i = 0; i < numLevels; i++){
+        V[i] = ptree.dT[i + 1]*std::pow(ptree.sigma, 2.0);
+        dr[i+1] = ptree.sigma*std::sqrt(3*ptree.dT[i + 1]);
+    }
+    ptree.Branches[0] = boost::numeric::ublas::vector<int>(1, 0);
+    
+    for(int level = 0; level < numLevels; level++){
+        // Calculate the rate values on this tree node
+        ptree.R[level].resize(ptree.Branches[level].size());
+        ptree.R[level] = dr[level]*ptree.Branches[level];
+        if (level < numLevels - 1){
+            boost::numeric::ublas::vector<double> M = -ptree.alpha*ptree.dT[level]*ptree.R[level];
+            boost::numeric::ublas::vector<double> ConnectJ = (ptree.R[level] + M)/dr[level + 1];
+            std::transform(ConnectJ.begin(), ConnectJ.end(), ConnectJ.begin(), [](double& x) {return std::round(x); });
+            boost::numeric::ublas::vector<double> Al = (ptree.R[level] + M - dr[level + 1]*ConnectJ)/dr[level + 1];
+            
+            boost::numeric::ublas::matrix<double> prob(3, Al.size(), 0.0);
+            boost::numeric::ublas::vector<double> pb0(boost::numeric::ublas::matrix_row<boost::numeric::ublas::matrix<double>>(prob, 0));
+            boost::numeric::ublas::vector<double> pb1(boost::numeric::ublas::matrix_row<boost::numeric::ublas::matrix<double>>(prob, 1));
+            boost::numeric::ublas::vector<double> pb2(boost::numeric::ublas::matrix_row<boost::numeric::ublas::matrix<double>>(prob, 2));
+ 
+            std::transform(Al.begin(), Al.end(), pb0.begin(), [&](double& x){ return (x*x + x)/2.0 + V[level]/std::pow(dr[level+1], 2.0)/2.0; });
+            std::transform(Al.begin(), Al.end(), pb1.begin(), [&](double& x){ return 1.0 - std::pow(x, 2.0) - V[level]/std::pow(dr[level+1], 2.0); });
+            std::transform(Al.begin(), Al.end(), pb2.begin(), [&](double& x){ return (x*x - x)/2.0 + V[level]/std::pow(dr[level+1], 2.0)/2.0; });
+            boost::numeric::ublas::row(prob, 0) = pb0;
+            boost::numeric::ublas::row(prob, 1) = pb1;
+            boost::numeric::ublas::row(prob, 2) = pb2;
 
+            ptree.Prob[level] = prob;
+
+            std::set<double> conn;
+            std::for_each(ConnectJ.begin(), ConnectJ.end(), [&](double x) { conn.insert(x); conn.insert(x+1); conn.insert(x-1); });
+            std::vector<double> thisLevelJ(conn.size());
+            std::partial_sort_copy(conn.begin(), conn.end(), thisLevelJ.begin(), thisLevelJ.end(), std::greater<int>());
+            ptree.Branches[level+1].resize(thisLevelJ.size());
+            std::copy(thisLevelJ.begin(), thisLevelJ.end(), ptree.Branches[level+1].begin());
+            
+            boost::numeric::ublas::matrix<int> connection(0, 0);
+            for_each(ConnectJ.begin(), ConnectJ.end(), [&](double &x) { std::vector<double>::iterator it = std::find(thisLevelJ.begin(), thisLevelJ.end(), x); connection.resize(connection.size1()+1, 1); connection(connection.size1()-1, 0) = std::distance(thisLevelJ.begin(), it); });
+            
+            ptree.Connect[level] = connection;
+        }   
+    }
+    ptree.dr = dr;
+}
+
+
+ProbabilityTree HullWhiteModel::getLattice(std::vector<Period>& maturities){
+    Calendar calendar = getCalendar();
+    std::string dc = getDayCounter();
+    DayCounter daycounter = parse_daycounter(dc);
+    Date valDate = getModelModelDate();
+    std::vector<Date> volDates(maturities.size());
+    std::transform(maturities.begin(), maturities.end(), volDates.begin(), [&](Period& p){ return calendar.advance(valDate, p); });
+    Date alphaDate = volDates[volDates.size() - 1];
+
+    double volCurve = HWmodel_->params()[1], alphaCurve = HWmodel_->params()[0];
+    std::vector<double> timeFracs(volDates.size());
+    std::transform(volDates.begin(), volDates.end(), timeFracs.begin(), [&](Date& d) { return daycounter.yearFraction(valDate, d); });
+    std::vector<double> zRates = getCurveZeroRates(timeFracs), discountFactors = getCashDF(timeFracs);
+    
+    int numLevels = volDates.size();
+    std::vector<double> tSpan(numLevels + 1, 0.0), dtSpan(numLevels + 1, 0.0); tSpan[0] = 0.0;
+    std::copy(timeFracs.begin(), timeFracs.end(), tSpan.begin()+1);
+    std::adjacent_difference(tSpan.begin(), tSpan.end(), dtSpan.begin());
+    
+    ProbabilityTree ptree(valDate, volDates, volCurve, alphaCurve, dtSpan);
+    buildProbabililtyTree(ptree);
+    
+    boost::numeric::ublas::vector<double> shift(numLevels, 1.0); shift[0] = zRates[0];
+
+    std::vector<boost::numeric::ublas::vector<double>> ADPTree = ptree.R;
+    ADPTree[0] = boost::numeric::ublas::vector<double>(1, 1.0);
+    ptree.R[0] = boost::numeric::ublas::vector<double>(1, shift[0]);
+    for (int level = 1; level < numLevels; level++){
+        boost::numeric::ublas::matrix<int> PrevConn(ptree.Connect[level - 1].size1(), 3, 1);
+        boost::numeric::ublas::matrix_column<boost::numeric::ublas::matrix<int>> prev(PrevConn, 1);
+        boost::numeric::ublas::vector<int> pconn(boost::numeric::ublas::matrix_column<boost::numeric::ublas::matrix<int>>(ptree.Connect[level - 1], 0));
+        std::copy(pconn.begin(), pconn.end(), prev.begin());
+        boost::numeric::ublas::column(PrevConn, 1) = prev;
+        boost::numeric::ublas::column(PrevConn, 0) = boost::numeric::ublas::column(PrevConn, 1) - boost::numeric::ublas::column(PrevConn, 0);
+        boost::numeric::ublas::column(PrevConn, 2) = boost::numeric::ublas::column(PrevConn, 1) + boost::numeric::ublas::column(PrevConn, 2);
+        int jIdx = ADPTree[level].size();
+        std::vector<double> temp(jIdx, 0);
+        for(int iState = 0; iState < jIdx; iState++){
+            std::vector<int> BackConn, direction;
+            for(int row = 0; row < PrevConn.size1(); row++){
+                for(int col = 0; col < PrevConn.size2(); col++){
+                    if (PrevConn(row, col) == iState){
+                        BackConn.push_back(row);
+                        direction.push_back(col);
+                    }
+                }
+            }
+            for(int count = 0; count < BackConn.size(); count++){
+                boost::numeric::ublas::matrix<double> prob = ptree.Prob[level - 1];
+                boost::numeric::ublas::vector<double> R = ptree.R[level - 1], lastLevel = ADPTree[level - 1];
+                double dt = ptree.dT[level];
+                temp[iState] += prob(direction[count], BackConn[count]) * std::exp(-(ptree.R[level-1][BackConn[count]]) * dt) * lastLevel[BackConn[count]];
+            }
+            
+        }
+        std::copy(temp.begin(), temp.end(), ADPTree[level].begin());
+        boost::numeric::ublas::vector<double> index(jIdx);
+        std::iota(std::begin(index), std::end(index), 1.0);
+        std::transform(index.begin(), index.end(), index.begin(), [&](double &x) { return std::floor(jIdx - x - jIdx/2); });
+
+        boost::numeric::ublas::vector<double> expR(ptree.R[level].size());
+        std::transform(ptree.R[level].begin(), ptree.R[level].end(), expR.begin(), [&](double& z) { return std::exp(-z*ptree.dT[level+1]); });
+        shift[level] = std::log(boost::numeric::ublas::inner_prod(ADPTree[level], expR) - std::log(discountFactors[level]))/ptree.dT[level+1];
+        //shift[level] = std::exp(-ptree.R[level]*ptree.dT[level+1]) - std::log(discountFactors[level])/ptree.dT[level+1];
+        
+        std::transform(ptree.R[level].begin(), ptree.R[level].end(), ptree.R[level].begin(), [&](double& x) { return x + shift[level]; });
+    }
+
+    // Convert to forward rates
+    std::vector<boost::numeric::ublas::vector<double>> fwdRates = ptree.R;
+    for (int level = 0; level < numLevels; level++){
+        boost::numeric::ublas::vector<double> r = fwdRates[level];
+        std::transform(r.begin(), r.end(), r.begin(), [](double& x) { return x; });
+        std::transform(r.begin(), r.end(), fwdRates[level].begin(), [&](double& x) { return std::exp(x*ptree.dT[level+1]); });
+        ptree.Fwd[level] = fwdRates[level];
+    }
+    
+    return ptree;
+}
 
 CoxIngersollRossModel::CoxIngersollRossModel(std::string &modelDate, std::string &currency, std::string &exchange, std::string& interpolationType) : BaseModel(modelDate, currency, exchange, interpolationType) { 
     std::ifstream file("C++/data/configuration.json");

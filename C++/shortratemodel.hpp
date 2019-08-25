@@ -16,9 +16,11 @@ class HullWhiteModel : public BaseModel{
         void parse_fitting_bucket(std::string& key, json& instrument);
         void parse_vol_instruments(std::string& key, json& instrument);
 
+        void buildProbabililtyTree(ProbabilityTree& ptree);
     public:
         HullWhiteModel(std::string &modelDate, std::string &currency, std::string &exchange, std::string& interpolationType);
         void buildModel();
+        ProbabilityTree getLattice(std::vector<Period>& maturities);
         std::vector<CalibrationReport> get_calibrationReport() { return calibrationReports_; };
         void generateMonteCarloPaths(int& numPaths, int& steps, double& maturity);
         boost::numeric::ublas::vector<double> getTimeGrid() { return timeGrid_; };
